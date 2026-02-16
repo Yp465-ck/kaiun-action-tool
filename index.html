@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>開運アクション生成ツール</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>開運アクション生成ツール</h1>
+            <p class="subtitle">暦・九星気学・五行から今日の開運アクションを導き出す</p>
+        </header>
+
+        <main>
+            <div class="tool-grid">
+                <!-- 左側：日付選択とイベント表示 -->
+                <section class="left-panel">
+                    <div class="date-section">
+                        <h2>日付を選択</h2>
+                        <input type="date" id="dateInput" class="date-picker">
+                        <button id="todayBtn" class="btn-secondary">今日</button>
+                    </div>
+
+                    <div class="events-section">
+                        <h2>この日の暦情報</h2>
+                        <div id="eventsDisplay" class="events-display">
+                            <p class="placeholder-text">日付を選択すると暦情報が表示されます</p>
+                        </div>
+                    </div>
+
+                    <div class="api-section">
+                        <h2>OpenAI API設定</h2>
+                        <div class="api-input-wrapper">
+                            <input type="password" id="apiKeyInput" placeholder="sk-..." class="api-input">
+                            <button id="toggleApiKey" class="btn-icon" title="表示/非表示">👁</button>
+                        </div>
+                        <button id="saveApiKey" class="btn-secondary">APIキーを保存</button>
+                        <p id="apiStatus" class="api-status"></p>
+                    </div>
+                </section>
+
+                <!-- 右側：開運アクション出力 -->
+                <section class="right-panel">
+                    <div class="generate-section">
+                        <button id="generateBtn" class="btn-primary" disabled>
+                            開運アクションを生成
+                        </button>
+                    </div>
+
+                    <!-- 1. 判定ロジック -->
+                    <div class="output-section calendar-section">
+                        <h2>1. 判定ロジック</h2>
+                        <div class="output-wrapper">
+                            <pre id="calendarOutput" class="calendar-output">日付を選択して生成ボタンを押してください</pre>
+                        </div>
+                    </div>
+
+                    <!-- 2. 抽象版アクション（ロジック確認用） -->
+                    <div class="output-section abstract-section">
+                        <h2>2. 抽象版アクション（ロジック確認用）</h2>
+                        <div class="output-wrapper">
+                            <div id="abstractOutput" class="abstract-output">
+                                <p class="placeholder-text">生成されたアクションがここに表示されます</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. Instagram用ストーリー文章 -->
+                    <div class="output-section instagram-section">
+                        <h2>3. Instagram用ストーリー文章（コピペ可）</h2>
+                        <div class="output-wrapper">
+                            <textarea id="instagramOutput" readonly placeholder="生成されたストーリー文章がここに表示されます"></textarea>
+                            <div class="output-actions">
+                                <button id="copyInstagramBtn" class="btn-secondary" disabled>コピー</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 4. 裏ロジック解説 -->
+                    <div class="output-section logic-section">
+                        <h2>4. 裏ロジック解説</h2>
+                        <div class="output-wrapper">
+                            <textarea id="logicOutput" readonly placeholder="判定フローがここに表示されます"></textarea>
+                            <div class="output-actions">
+                                <button id="copyLogicBtn" class="btn-secondary" disabled>コピー</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        <footer>
+            <p>© 2026 開運アクション生成ツール</p>
+        </footer>
+    </div>
+
+    <!-- 通知 -->
+    <div id="notification" class="notification hidden">
+        <span id="notificationText"></span>
+    </div>
+
+    <!-- ローディングオーバーレイ -->
+    <div id="loadingOverlay" class="loading-overlay hidden">
+        <div class="loading-spinner"></div>
+        <p>開運アクションを生成中...</p>
+    </div>
+
+    <!-- モジュールとして読み込み -->
+    <script type="module" src="app.js"></script>
+</body>
+</html>
