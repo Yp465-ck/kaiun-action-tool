@@ -30,12 +30,22 @@ const elements = {
     copyLogicBtn: document.getElementById('copyLogicBtn'),
     notification: document.getElementById('notification'),
     notificationText: document.getElementById('notificationText'),
-    loadingOverlay: document.getElementById('loadingOverlay')
+    loadingOverlay: document.getElementById('loadingOverlay'),
+    // 画像アップロード関連
+    dropZone: document.getElementById('dropZone'),
+    imageInput: document.getElementById('imageInput'),
+    imagePreview: document.getElementById('imagePreview'),
+    previewImg: document.getElementById('previewImg'),
+    removeImage: document.getElementById('removeImage'),
+    analyzeImageBtn: document.getElementById('analyzeImageBtn'),
+    imageAnalysisStatus: document.getElementById('imageAnalysisStatus')
 };
 
 // ===== 状態管理 =====
 let currentCalendarData = null;
 let apiKey = localStorage.getItem('openai_api_key') || '';
+let uploadedImageFile = null;
+let recognizedCalendarData = null; // 画像認識で取得したデータ
 
 // ===== ユーティリティ関数 =====
 function showNotification(message) {
@@ -239,6 +249,116 @@ function renderCalendarData(data) {
     elements.eventsDisplay.innerHTML = html;
 }
 
+// ===== 画像認識関連 =====
+
+// 画像をBase64に変換
+function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+            const base64 = reader.result.split(',')[1];
+            resolve(base64);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+// GPT-4o Vision APIで画像から暦情報を抽出
+async function analyzeCalendarImage(imageFile) {
+    const base64 = await fileToBase64(imageFile);
+    
+    const extractionPrompt = `この暦カレンダーのスクリーンショットから暦情報を読み取り、以下のJSON形式で正確に抽出してください。
+
+必ず以下の形式でJSONのみを返してください（説明文は不要）：
+
+{
+  "date": "YYYY-MM-DD形式の日付",
+  "kanshi": "干支（例：辛酉）",
+  "gogyo": "五行（例：比和、相生、相剋）",
+  "kyusei": "九星（例：四緑）",
+  "rokuyo": "六曜（例：仏滅、大安）",
+  "junichoku": "十二直（例：危、成、建）",
+  "nijuhassyuku": "二十八宿（例：危、室）",
+  "kichijitsu": ["吉日の配列（例：神吉日、大明日、月徳合日）"],
+  "kyoujitsu": ["凶日の配列（例：八専、十死日、受死日）"]
+}
+
+画像に表示されている情報のみを抽出し、推測は行わないでください。`;
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            model: 'gpt-4o',
+            messages: [{
+                role: 'user',
+                content: [
+                    { type: 'text', text: extractionPrompt },
+                    { 
+                        type: 'image_url', 
+                        image_url: { 
+                            url: `data:image/${imageFile.type.split('/')[1]};base64,${base64}`,
+                            detail: 'high'
+                        }
+                    }
+                ]
+            }],
+            max_tokens: 1000
+        })
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error?.message || '画像認識に失敗しました');
+    }
+
+    const result = await response.json();
+    const content = result.choices[0].message.content;
+    
+    // JSONを抽出（```json ... ```で囲まれている場合も対応）
+    let jsonStr = content;
+    const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/);
+    if (jsonMatch) {
+        jsonStr = jsonMatch[1];
+    } else {
+        // JSONブロックがない場合、{で始まる部分を探す
+        const startIdx = content.indexOf('{');
+        const endIdx = content.lastIndexOf('}');
+        if (startIdx !== -1 && endIdx !== -1) {
+            jsonStr = content.slice(startIdx, endIdx + 1);
+        }
+    }
+    
+    return JSON.parse(jsonStr);
+}
+
+// 認識結果を表示
+function displayRecognizedData(data) {
+    const statusEl = elements.imageAnalysisStatus;
+    
+    let html = '<div class="recognized-data">';
+    html += '<div class="recognized-data-title">認識された暦情報</div>';
+    html += '<div class="recognized-data-list">';
+    html += `<div>日付: ${data.date || '不明'}</div>`;
+    html += `<div>干支: ${data.kanshi || '不明'} | 五行: ${data.gogyo || '不明'}</div>`;
+    html += `<div>九星: ${data.kyusei || '不明'} | 六曜: ${data.rokuyo || '不明'}</div>`;
+    html += `<div>十二直: ${data.junichoku || '不明'} | 二十八宿: ${data.nijuhassyuku || '不明'}</div>`;
+    if (data.kichijitsu && data.kichijitsu.length > 0) {
+        html += `<div>吉日: ${data.kichijitsu.join('、')}</div>`;
+    }
+    if (data.kyoujitsu && data.kyoujitsu.length > 0) {
+        html += `<div>凶日: ${data.kyoujitsu.join('、')}</div>`;
+    }
+    html += '</div></div>';
+    
+    statusEl.innerHTML = html;
+    statusEl.className = 'analysis-status success';
+}
+
 // ===== 開運アクション生成 =====
 async function generateAction() {
     if (!currentCalendarData) {
@@ -254,10 +374,15 @@ async function generateAction() {
     showLoading();
 
     try {
-        const result = await generateKaiunAction(currentCalendarData, apiKey);
+        // 画像認識データがあれば優先して使用
+        const result = await generateKaiunAction(currentCalendarData, apiKey, recognizedCalendarData);
 
-        // 1. 暦情報
-        elements.calendarOutput.textContent = result.calendarSummary;
+        // 1. 暦情報（認識データがある場合はその旨を表示）
+        let calendarSummaryText = result.calendarSummary;
+        if (recognizedCalendarData) {
+            calendarSummaryText = '【画像認識データを使用】\n' + calendarSummaryText;
+        }
+        elements.calendarOutput.textContent = calendarSummaryText;
 
         // 2. 抽象版アクション
         elements.abstractOutput.innerHTML = `<p>${result.abstractAction}</p>`;
@@ -334,6 +459,89 @@ elements.copyLogicBtn.addEventListener('click', () => {
     navigator.clipboard.writeText(elements.logicOutput.value).then(() => {
         showNotification('裏ロジック解説をコピーしました');
     });
+});
+
+// ===== 画像アップロード関連イベント =====
+
+// ドラッグ&ドロップ
+elements.dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    elements.dropZone.classList.add('drag-over');
+});
+
+elements.dropZone.addEventListener('dragleave', () => {
+    elements.dropZone.classList.remove('drag-over');
+});
+
+elements.dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    elements.dropZone.classList.remove('drag-over');
+    
+    const files = e.dataTransfer.files;
+    if (files.length > 0 && files[0].type.startsWith('image/')) {
+        handleImageSelect(files[0]);
+    }
+});
+
+// ファイル選択
+elements.imageInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+        handleImageSelect(e.target.files[0]);
+    }
+});
+
+// 画像選択処理
+function handleImageSelect(file) {
+    uploadedImageFile = file;
+    
+    // プレビュー表示
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        elements.previewImg.src = e.target.result;
+        elements.imagePreview.classList.remove('hidden');
+        elements.dropZone.style.display = 'none';
+        elements.analyzeImageBtn.disabled = !apiKey;
+        elements.imageAnalysisStatus.innerHTML = '';
+        recognizedCalendarData = null;
+    };
+    reader.readAsDataURL(file);
+}
+
+// 画像削除
+elements.removeImage.addEventListener('click', () => {
+    uploadedImageFile = null;
+    recognizedCalendarData = null;
+    elements.previewImg.src = '';
+    elements.imagePreview.classList.add('hidden');
+    elements.dropZone.style.display = 'block';
+    elements.analyzeImageBtn.disabled = true;
+    elements.imageAnalysisStatus.innerHTML = '';
+    elements.imageInput.value = '';
+});
+
+// 画像解析ボタン
+elements.analyzeImageBtn.addEventListener('click', async () => {
+    if (!uploadedImageFile || !apiKey) {
+        showNotification('画像とAPIキーを設定してください');
+        return;
+    }
+    
+    elements.analyzeImageBtn.disabled = true;
+    elements.imageAnalysisStatus.innerHTML = '暦情報を認識中...';
+    elements.imageAnalysisStatus.className = 'analysis-status loading';
+    
+    try {
+        recognizedCalendarData = await analyzeCalendarImage(uploadedImageFile);
+        displayRecognizedData(recognizedCalendarData);
+        showNotification('暦情報を認識しました。この情報で開運アクションを生成します。');
+    } catch (error) {
+        console.error('Image analysis error:', error);
+        elements.imageAnalysisStatus.innerHTML = 'エラー: ' + error.message;
+        elements.imageAnalysisStatus.className = 'analysis-status error';
+        recognizedCalendarData = null;
+    } finally {
+        elements.analyzeImageBtn.disabled = false;
+    }
 });
 
 // 生成ボタンの状態更新

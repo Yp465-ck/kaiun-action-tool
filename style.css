@@ -485,6 +485,207 @@ footer {
     font-size: 0.85rem;
 }
 
+/* ===== 暦情報参照・画像アップロード ===== */
+.calendar-reference-section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.section-description {
+    font-size: 0.85rem;
+    color: var(--text-light);
+    line-height: 1.5;
+}
+
+.external-link-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    background: linear-gradient(135deg, #EBF8FF 0%, #E6FFFA 100%);
+    border: 2px solid #81E6D9;
+    border-radius: 12px;
+    color: #234E52;
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.external-link-btn:hover {
+    background: linear-gradient(135deg, #C6F6D5 0%, #B2F5EA 100%);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+}
+
+.link-icon {
+    font-size: 1.3rem;
+}
+
+.link-text {
+    flex: 1;
+}
+
+.link-arrow {
+    font-size: 1rem;
+    opacity: 0.7;
+}
+
+.image-upload-section {
+    margin-top: 8px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-color);
+}
+
+.image-upload-section h3 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-color);
+    margin-bottom: 12px;
+}
+
+.drop-zone {
+    position: relative;
+    border: 2px dashed var(--border-color);
+    border-radius: 12px;
+    padding: 30px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--bg-color);
+}
+
+.drop-zone:hover,
+.drop-zone.drag-over {
+    border-color: var(--primary-color);
+    background: var(--secondary-color);
+}
+
+.drop-zone-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.drop-icon {
+    font-size: 2rem;
+}
+
+.drop-zone p {
+    color: var(--text-color);
+    font-weight: 500;
+    margin: 0;
+}
+
+.drop-hint {
+    font-size: 0.85rem;
+    color: var(--text-light) !important;
+    font-weight: 400 !important;
+}
+
+.file-input-hidden {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.image-preview {
+    position: relative;
+    margin-top: 12px;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 2px solid var(--border-color);
+}
+
+.image-preview.hidden {
+    display: none;
+}
+
+.image-preview img {
+    width: 100%;
+    height: auto;
+    display: block;
+    max-height: 250px;
+    object-fit: contain;
+    background: #f0f0f0;
+}
+
+.btn-remove {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    font-size: 1.2rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.btn-remove:hover {
+    background: rgba(0, 0, 0, 0.8);
+}
+
+.btn-analyze {
+    width: 100%;
+    margin-top: 12px;
+    padding: 14px 20px;
+    font-size: 1rem;
+    min-height: 48px;
+}
+
+.analysis-status {
+    margin-top: 8px;
+    font-size: 0.9rem;
+    text-align: center;
+    min-height: 24px;
+}
+
+.analysis-status.success {
+    color: var(--success-color);
+}
+
+.analysis-status.error {
+    color: var(--error-color);
+}
+
+.analysis-status.loading {
+    color: var(--primary-color);
+}
+
+/* 認識結果表示 */
+.recognized-data {
+    margin-top: 12px;
+    padding: 12px;
+    background: #F0FFF4;
+    border: 2px solid var(--success-color);
+    border-radius: 10px;
+}
+
+.recognized-data-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--success-color);
+    margin-bottom: 8px;
+}
+
+.recognized-data-list {
+    font-size: 0.85rem;
+    color: var(--text-color);
+    line-height: 1.6;
+}
+
 /* ===== スクロールバー ===== */
 ::-webkit-scrollbar {
     width: 8px;

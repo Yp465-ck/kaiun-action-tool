@@ -139,18 +139,112 @@ Instagramストーリー用の「今日の開運アクション」の本文を�
 }
 
 /**
+ * 画像認識データでcalendarDataを補完・上書き
+ * @param {Object} calendarData 元の暦情報
+ * @param {Object} recognizedData 画像認識で取得したデータ
+ * @returns {Object} 統合されたデータ
+ */
+function mergeWithRecognizedData(calendarData, recognizedData) {
+    if (!recognizedData) return calendarData;
+    
+    const merged = { ...calendarData };
+    
+    // 十二直の上書き
+    if (recognizedData.junichoku) {
+        merged.junichoku = {
+            ...merged.junichoku,
+            name: recognizedData.junichoku,
+            fromImage: true
+        };
+    }
+    
+    // 六曜の上書き
+    if (recognizedData.rokuyo) {
+        merged.rokuyo = {
+            ...merged.rokuyo,
+            name: recognizedData.rokuyo,
+            fromImage: true
+        };
+    }
+    
+    // 九星の上書き
+    if (recognizedData.kyusei) {
+        merged.kyusei = {
+            ...merged.kyusei,
+            day: {
+                ...merged.kyusei.day,
+                name: recognizedData.kyusei,
+                fromImage: true
+            }
+        };
+    }
+    
+    // 吉凶日の上書き（画像認識データを優先）
+    if (recognizedData.kichijitsu || recognizedData.kyoujitsu) {
+        const newKichikuDays = [];
+        
+        // 吉日を追加
+        if (recognizedData.kichijitsu) {
+            recognizedData.kichijitsu.forEach(name => {
+                newKichikuDays.push({
+                    name,
+                    isGood: true,
+                    fromImage: true
+                });
+            });
+        }
+        
+        // 凶日を追加
+        if (recognizedData.kyoujitsu) {
+            recognizedData.kyoujitsu.forEach(name => {
+                newKichikuDays.push({
+                    name,
+                    isGood: false,
+                    fromImage: true
+                });
+            });
+        }
+        
+        merged.kichikuDays = newKichikuDays;
+    }
+    
+    // フラグを追加
+    merged.fromImageRecognition = true;
+    merged.recognizedData = recognizedData;
+    
+    return merged;
+}
+
+/**
  * 開運アクションを生成
  * @param {Object} calendarData 暦情報
  * @param {string} apiKey OpenAI APIキー
+ * @param {Object} recognizedData 画像認識で取得したデータ（オプション）
  * @returns {Promise<Object>}
  */
-export async function generateKaiunAction(calendarData, apiKey) {
-    const shujiku = calendarData.shujiku;
-    const gogyo = calendarData.gogyo;
+export async function generateKaiunAction(calendarData, apiKey, recognizedData = null) {
+    // 画像認識データがあれば統合
+    const mergedData = mergeWithRecognizedData(calendarData, recognizedData);
+    
+    const shujiku = mergedData.shujiku;
+    const gogyo = mergedData.gogyo;
     const gogyoActions = GOGYO_ACTIONS[gogyo.element];
     
     // 表示可能な吉凶日を取得
-    const displayableDays = getDisplayableKichikuDays(calendarData.kichikuDays);
+    const displayableDays = getDisplayableKichikuDays(mergedData.kichikuDays);
+    
+    // 画像認識データがある場合の追加情報
+    let imageDataNote = '';
+    if (recognizedData) {
+        imageDataNote = `
+=== 画像認識で取得した暦情報（こちらを優先） ===
+十二直: ${recognizedData.junichoku || '不明'}
+六曜: ${recognizedData.rokuyo || '不明'}
+九星: ${recognizedData.kyusei || '不明'}
+吉日: ${recognizedData.kichijitsu?.join('、') || 'なし'}
+凶日: ${recognizedData.kyoujitsu?.join('、') || 'なし'}
+`;
+    }
     
     // プロンプトを構築
     const prompt = `
@@ -160,8 +254,8 @@ export async function generateKaiunAction(calendarData, apiKey) {
 ${shujiku.concreteAction}
 
 === 暦情報 ===
-${summarizeCalendarData(calendarData)}
-
+${summarizeCalendarData(mergedData)}
+${imageDataNote}
 === 判定フロー ===
 ${generateFlowText(shujiku)}
 
@@ -170,8 +264,8 @@ ${shujiku.mainAxis}
 
 === 文章に使えるキーワード ===
 ${displayableDays.length > 0 ? displayableDays.map(d => d.name).join('、') : '特になし'}
-${calendarData.moonPhase.isNewMoon ? `新月（${calendarData.moonPhase.zodiac}座）` : ''}
-${calendarData.moonPhase.isFullMoon ? `満月（${calendarData.moonPhase.zodiac}座）` : ''}
+${mergedData.moonPhase.isNewMoon ? `新月（${mergedData.moonPhase.zodiac}座）` : ''}
+${mergedData.moonPhase.isFullMoon ? `満月（${mergedData.moonPhase.zodiac}座）` : ''}
 
 === 出力形式 ===
 以下の形式で本文のみを出力してください（アクション1行目は含めない）。
@@ -199,7 +293,7 @@ ${bodyText.trim()}`;
         
         return {
             // 判定ロジック要約
-            calendarSummary: generateLogicSummary(calendarData, shujiku),
+            calendarSummary: generateLogicSummary(mergedData, shujiku),
             
             // 抽象版アクション
             abstractAction: shujiku.abstractAction,
@@ -212,23 +306,27 @@ ${bodyText.trim()}`;
             
             // 詳細情報
             shujiku,
-            calendarData
+            calendarData: mergedData,
+            
+            // 画像認識を使用したかどうか
+            usedImageRecognition: !!recognizedData
         };
         
     } catch (error) {
         console.error('OpenAI API Error:', error);
         
         // APIエラー時はローカルで簡易生成
-        return generateFallbackAction(calendarData);
+        return generateFallbackAction(mergedData, recognizedData);
     }
 }
 
 /**
  * フォールバック用のローカル生成
- * @param {Object} calendarData 
+ * @param {Object} calendarData 統合済みの暦情報
+ * @param {Object} recognizedData 画像認識データ（オプション）
  * @returns {Object}
  */
-function generateFallbackAction(calendarData) {
+function generateFallbackAction(calendarData, recognizedData = null) {
     const shujiku = calendarData.shujiku;
     const gogyo = calendarData.gogyo;
     
@@ -277,6 +375,9 @@ ${bodyText}`;
         
         // 詳細情報
         shujiku,
-        calendarData
+        calendarData,
+        
+        // 画像認識を使用したかどうか
+        usedImageRecognition: !!recognizedData
     };
 }

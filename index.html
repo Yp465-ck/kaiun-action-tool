@@ -39,6 +39,38 @@
                         <button id="saveApiKey" class="btn-secondary">APIキーを保存</button>
                         <p id="apiStatus" class="api-status"></p>
                     </div>
+
+                    <!-- 暦情報の参照・画像認識 -->
+                    <div class="calendar-reference-section">
+                        <h2>暦情報を外部サイトで確認</h2>
+                        <p class="section-description">より正確な暦情報が必要な場合、外部サイトのスクリーンショットから情報を取得できます。</p>
+                        
+                        <a href="https://hotdoglab.jp/calendar2026/" target="_blank" rel="noopener noreferrer" class="external-link-btn">
+                            <span class="link-icon">📅</span>
+                            <span class="link-text">吉日カレンダー2026を開く</span>
+                            <span class="link-arrow">↗</span>
+                        </a>
+
+                        <div class="image-upload-section">
+                            <h3>スクリーンショットから暦情報を取得</h3>
+                            <div id="dropZone" class="drop-zone">
+                                <div class="drop-zone-content">
+                                    <span class="drop-icon">📷</span>
+                                    <p>画像をドラッグ&ドロップ</p>
+                                    <p class="drop-hint">またはクリックして選択</p>
+                                </div>
+                                <input type="file" id="imageInput" accept="image/*" class="file-input-hidden">
+                            </div>
+                            <div id="imagePreview" class="image-preview hidden">
+                                <img id="previewImg" src="" alt="プレビュー">
+                                <button id="removeImage" class="btn-remove">×</button>
+                            </div>
+                            <button id="analyzeImageBtn" class="btn-secondary btn-analyze" disabled>
+                                画像から暦情報を取得
+                            </button>
+                            <div id="imageAnalysisStatus" class="analysis-status"></div>
+                        </div>
+                    </div>
                 </section>
 
                 <!-- 右側：開運アクション出力 -->
